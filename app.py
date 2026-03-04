@@ -2,18 +2,18 @@ import streamlit as st
 import win32com.client
 import pandas as pd
 from datetime import datetime, timedelta
-import google.generativeai as genai
+from openai import OpenAI
 import pythoncom
 
 # ============================================================
 # 설정 (Config) 블록
-GEMINI_API_KEY = "AIzaSyA60k0EOXZ9XZBEOwXSXiikjrKQj8PFRWg"
-GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models" 
-GEMINI_MODEL = "gemini-2.5-flash"
+OPENAI_API_KEY = "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"
+OPENAI_MODEL = "gpt-4o-mini"
+# ============================================================
+
 # --- [1] AI 설정 ---
-genai.configure(api_key=GEMINI_API_KEY)
-# SDK가 API URL을 자동으로 매핑하므로 모델명 변수만 전달하면 됩니다.
-model = genai.GenerativeModel(GEMINI_MODEL)
+# OpenAI 클라이언트 초기화
+client = OpenAI(api_key=OPENAI_API_KEY)
 
 # --- [2] Outlook 검색 함수 ---
 def search_outlook_emails(sender_keyword, start_date, end_date):
@@ -75,10 +75,18 @@ def analyze_emails_with_ai(email_df):
     """
     
     try:
-        response = model.generate_content(prompt)
-        return response.text
+        # OpenAI API 호출 (ChatCompletion 방식)
+        response = client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": "당신은 이메일 내용을 정확하고 간결하게 요약하는 비즈니스 어시스턴트입니다."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        # 응답 결과 텍스트 추출
+        return response.choices[0].message.content
     except Exception as e:
-        return f"AI 분석 중 오류가 발생했습니다.\n(에러 내용: {str(e)})"
+        return f"AI 분석 중 오류가 발생했습니다. API 키를 확인해 주세요.\n(에러 내용: {str(e)})"
 
 # --- [4] Streamlit 웹 UI 구성 ---
 st.set_page_config(page_title="고객사 메일 AI 요약기", layout="wide")
@@ -101,7 +109,7 @@ if search_button:
     elif len(date_range) != 2:
         st.warning("시작일과 종료일을 모두 선택해 주세요.")
     else:
-        with st.spinner(f"Outlook 메일을 검색하고 {GEMINI_MODEL} 모델이 분석 중입니다..."):
+        with st.spinner(f"Outlook 메일을 검색하고 {OPENAI_MODEL} 모델이 분석 중입니다..."):
             start_date, end_date = date_range
             
             df_emails = search_outlook_emails(sender_input, start_date, end_date)
